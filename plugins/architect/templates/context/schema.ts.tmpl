@@ -1,0 +1,82 @@
+// Architect Context System - Database Schema
+// pgvector-based session embeddings for layer-based retrieval
+//
+// Add to your project's schema file or run as migration
+
+import { pgTable, serial, text, integer, timestamp, date, index } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+
+// Enable pgvector extension (run once per database)
+// CREATE EXTENSION IF NOT EXISTS vector;
+
+// Custom vector type for Drizzle (pgvector)
+// Note: You may need to add this to your drizzle config
+const vector = (name: string, dimensions: number) => {
+  return text(name).$type<number[]>();
+};
+
+export const sessionEmbeddings = pgTable('session_embeddings', {
+  id: serial('id').primaryKey(),
+
+  // Content
+  sessionName: text('session_name').notNull(),
+  chunkIndex: integer('chunk_index').notNull(),
+  content: text('content').notNull(),
+  embedding: text('embedding'), // Store as text, cast to vector in queries
+
+  // Layer classification
+  layer: text('layer').notNull(),        // user, product, project, plan, task
+  sublayer: text('sublayer').notNull(),  // varies by layer
+
+  // Context identifiers
+  projectName: text('project_name'),
+  featureName: text('feature_name'),
+  productArea: text('product_area'),
+
+  // Classification metadata
+  summary: text('summary'),
+  topics: text('topics').array(),
+
+  // Temporal
+  sessionDate: date('session_date').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+
+  // Relationships
+  techStack: text('tech_stack').array(),
+  filesTouched: text('files_touched').array(),
+  commitHashes: text('commit_hashes').array(),
+
+  // Ingestion metadata
+  ingestTrigger: text('ingest_trigger'), // precompact, plan_approved, commit, manual
+});
+
+// Raw SQL for creating indexes (run as migration)
+export const createIndexesSQL = sql`
+  -- Enable pgvector if not already enabled
+  CREATE EXTENSION IF NOT EXISTS vector;
+
+  -- Add vector column if using text workaround
+  ALTER TABLE session_embeddings
+    ADD COLUMN IF NOT EXISTS embedding_vec vector(1536);
+
+  -- Create indexes
+  CREATE INDEX IF NOT EXISTS embedding_idx
+    ON session_embeddings USING ivfflat (embedding_vec vector_cosine_ops);
+  CREATE INDEX IF NOT EXISTS layer_idx ON session_embeddings (layer);
+  CREATE INDEX IF NOT EXISTS sublayer_idx ON session_embeddings (sublayer);
+  CREATE INDEX IF NOT EXISTS project_idx ON session_embeddings (project_name);
+  CREATE INDEX IF NOT EXISTS product_area_idx ON session_embeddings (product_area);
+`;
+
+// Layer and sublayer types for TypeScript
+export type Layer = 'user' | 'product' | 'project' | 'plan' | 'task';
+
+export type Sublayer = {
+  user: 'patterns' | 'preferences' | 'learnings' | 'mistakes';
+  product: 'architecture' | 'design' | 'domain';
+  project: 'active' | 'decisions' | 'state';
+  plan: 'strategy' | 'steps' | 'backlog';
+  task: 'implementation' | 'debugging' | 'verification';
+};
+
+export type IngestTrigger = 'precompact' | 'plan_approved' | 'commit' | 'manual';

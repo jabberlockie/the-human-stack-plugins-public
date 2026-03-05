@@ -1,0 +1,68 @@
+// Architect Context System - Configuration
+// Configure your API keys and database connection
+
+export const config = {
+  // OpenAI API for embeddings
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY || '',
+    embeddingModel: 'text-embedding-3-small',
+    embeddingDimensions: 1536,
+  },
+
+  // Anthropic API for classification
+  anthropic: {
+    apiKey: process.env.ANTHROPIC_API_KEY || '',
+    classificationModel: 'claude-3-haiku-20240307', // Fast and cheap for classification
+  },
+
+  // Database connection (uses project's existing connection)
+  database: {
+    // Uses DATABASE_URL from environment
+    url: process.env.DATABASE_URL || '',
+  },
+
+  // Ingestion settings
+  ingestion: {
+    // Maximum tokens per chunk (approximate)
+    maxChunkTokens: 500,
+
+    // Batch size for embedding API calls
+    embeddingBatchSize: 20,
+
+    // Batch size for classification calls
+    classificationBatchSize: 5,
+  },
+
+  // Query settings
+  query: {
+    // Default number of results to return
+    defaultLimit: 10,
+
+    // Layers to include in cross-project queries
+    crossProjectLayers: ['user', 'product'] as const,
+
+    // Minimum similarity score (0-1, higher = more similar)
+    minSimilarity: 0.7,
+  },
+
+  // Project context
+  project: {
+    name: '{{PROJECT_NAME}}',
+    architectDir: 'docs/architect',
+    sessionsDir: 'docs/architect/sessions',
+  },
+};
+
+// Validate required config
+export function validateConfig(): { valid: boolean; missing: string[] } {
+  const missing: string[] = [];
+
+  if (!config.openai.apiKey) missing.push('OPENAI_API_KEY');
+  if (!config.anthropic.apiKey) missing.push('ANTHROPIC_API_KEY');
+  if (!config.database.url) missing.push('DATABASE_URL');
+
+  return {
+    valid: missing.length === 0,
+    missing,
+  };
+}

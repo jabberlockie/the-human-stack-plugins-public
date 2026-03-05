@@ -1,0 +1,53 @@
+#!/bin/bash
+# docs/architect/hooks/post-commit
+# Git hook: Updates project state after commits
+
+# Get the project root (where .git is)
+PROJECT_ROOT=$(git rev-parse --show-toplevel)
+STATE_FILE="$PROJECT_ROOT/docs/architect/project/state.md"
+MASTER_CONTEXT="$PROJECT_ROOT/docs/architect/Master_Context.md"
+
+# Get latest commit info
+COMMIT_HASH=$(git rev-parse --short HEAD)
+COMMIT_MSG=$(git log -1 --pretty=format:"%s")
+COMMIT_DATE=$(date +%Y-%m-%d)
+
+# Update state.md Recent Activity section
+if [ -f "$STATE_FILE" ]; then
+    # Create the new activity line
+    NEW_ACTIVITY="- $COMMIT_DATE: $COMMIT_MSG ($COMMIT_HASH)"
+
+    # Use sed to add the new activity after the "## Recent Activity" section marker
+    # This adds it right after the HTML comment
+    if grep -q "<!-- This section is auto-updated" "$STATE_FILE"; then
+        sed -i '' "/<!-- This section is auto-updated.*-->/a\\
+$NEW_ACTIVITY
+" "$STATE_FILE"
+    fi
+fi
+
+# Update Master_Context.md Recent Activity section
+if [ -f "$MASTER_CONTEXT" ]; then
+    NEW_ACTIVITY="- $COMMIT_DATE: $COMMIT_MSG"
+
+    if grep -q "<!-- Auto-updated by git post-commit hook -->" "$MASTER_CONTEXT"; then
+        sed -i '' "/<!-- Auto-updated by git post-commit hook -->/a\\
+$NEW_ACTIVITY
+" "$MASTER_CONTEXT"
+    fi
+fi
+
+# Ingest most recent session if context system is configured
+INGEST_SCRIPT="$PROJECT_ROOT/docs/architect/hooks/ingest-session.sh"
+SESSIONS_DIR="$PROJECT_ROOT/docs/architect/sessions"
+
+if [ -x "$INGEST_SCRIPT" ] && [ -d "$SESSIONS_DIR" ]; then
+    # Find most recent session file (modified in last hour)
+    RECENT_SESSION=$(find "$SESSIONS_DIR" -name "*.md" -mmin -60 -type f | sort -r | head -1)
+
+    if [ -n "$RECENT_SESSION" ]; then
+        "$INGEST_SCRIPT" "$RECENT_SESSION" "commit" "$COMMIT_HASH" 2>/dev/null || true
+    fi
+fi
+
+exit 0

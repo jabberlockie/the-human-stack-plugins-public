@@ -1,0 +1,9 @@
+{
+  "name": "uxinator",
+  "version": "1.0.0",
+  "description": "Expectation Architecture for all delivery modes. Routes context to the right mode (strategy, keynote, training), maps expectations, detects mode drift, designs deliverables, evaluates sessions. 16 skills across orchestration, strategy, keynote, and training. Built on UX² = User Expectations × User Experience.",
+  "author": {
+    "name": "The Human Stack"
+  },
+  "keywords": ["expectations", "delivery", "strategy", "keynote", "training", "mode-drift"]
+}

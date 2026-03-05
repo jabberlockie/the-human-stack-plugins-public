@@ -1,0 +1,26 @@
+{
+  "project": {
+    "name": "{{PROJECT_NAME}}",
+    "slug": "{{PROJECT_SLUG}}",
+    "description": "{{PROJECT_DESCRIPTION}}",
+    "techStack": "{{TECH_STACK}}",
+    "deployment": "{{DEPLOYMENT}}",
+    "created": "{{DATE}}"
+  },
+  "context": {
+    "version": "1.0",
+    "layers": ["product", "project", "subagents"]
+  },
+  "currentProject": {
+    "name": null,
+    "phase": 0,
+    "totalPhases": 0,
+    "status": "not_started",
+    "startDate": null
+  },
+  "hooks": {
+    "postCommit": true,
+    "preCompact": true,
+    "planApproved": true
+  }
+}

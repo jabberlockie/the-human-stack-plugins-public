@@ -1,0 +1,8 @@
+{
+  "name": "jobs-2b-done",
+  "version": "5.0.0",
+  "description": "Jobs 2B Done — Run JTBD analysis on sales, coaching, and industry call transcripts with UXinator Expectation Mapping. Pulls transcripts from Notion or pasted text, enriches with HubSpot and Clay connections, tracks coaching series with session numbering, saves structured analysis to organized folders, and populates the JTBD Analyses Notion database.",
+  "author": {
+    "name": "The Human Stack"
+  }
+}

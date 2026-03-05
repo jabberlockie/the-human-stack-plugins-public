@@ -1,0 +1,12 @@
+{
+  "name": "hoardinator",
+  "version": "1.0.0",
+  "description": "Ingest Claude Code JSONL session transcripts into Supabase for analytics and learning loop closure. Log, batch-ingest, and query session data across all your repos.",
+  "author": {
+    "name": "Tim Lockie",
+    "url": "https://thehumanstack.com"
+  },
+  "repository": "https://github.com/thehumanstackteam/the-human-stack-plugins",
+  "license": "MIT",
+  "keywords": ["sessions", "analytics", "supabase", "ingestion", "transcripts"]
+}

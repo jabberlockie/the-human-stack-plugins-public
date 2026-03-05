@@ -1,0 +1,12 @@
+{
+  "name": "architect",
+  "version": "2.3.0",
+  "description": "Three-layer AI context framework for project development. Bootstraps docs/architect/ with Product, Project, and Task layers. Auto-commits on plan approval and nudges feature-dev for implementation.",
+  "author": {
+    "name": "Tim Lockie",
+    "url": "https://thehumanstack.com"
+  },
+  "repository": "https://github.com/jabberlockie/architect-template",
+  "license": "MIT",
+  "keywords": ["context", "architecture", "planning", "project-management", "docs"]
+}

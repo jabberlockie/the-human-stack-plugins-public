@@ -1,0 +1,8 @@
+{
+  "name": "instructional-designer",
+  "version": "1.0.0",
+  "description": "Design, audit, and rehearse training sessions. Structured intake to concept map to breakdown. Timing checks, engagement checks with scripted questions, survey generation, slide review, dry-run coaching, and story harvesting from transcripts.",
+  "author": {
+    "name": "The Human Stack"
+  }
+}

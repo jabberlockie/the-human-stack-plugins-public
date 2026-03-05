@@ -1,0 +1,321 @@
+#!/usr/bin/env npx ts-node
+// Architect Context System - Session Ingestion
+// Ingests session transcripts into pgvector for retrieval
+
+import { readFileSync, existsSync } from 'fs';
+import { config, validateConfig } from './config';
+
+// Types
+interface ChunkClassification {
+  layer: string;
+  sublayer: string;
+  product_area: string | null;
+  summary: string;
+  topics: string[];
+}
+
+interface SessionChunk {
+  content: string;
+  index: number;
+  role: 'user' | 'assistant';
+}
+
+interface IngestOptions {
+  sessionPath: string;
+  sessionName: string;
+  trigger: 'precompact' | 'plan_approved' | 'commit' | 'manual';
+  commitHash?: string;
+  featureName?: string;
+}
+
+// Validate embedding is array of finite numbers (prevents injection)
+function validateEmbedding(embedding: unknown): number[] {
+  if (!Array.isArray(embedding)) {
+    throw new Error('Embedding must be an array');
+  }
+  for (const val of embedding) {
+    if (typeof val !== 'number' || !isFinite(val)) {
+      throw new Error('Embedding values must be finite numbers');
+    }
+  }
+  return embedding as number[];
+}
+
+// Chunk session by conversation turns
+function chunkSession(content: string): SessionChunk[] {
+  const chunks: SessionChunk[] = [];
+
+  // Split by markdown headers (### User, ### Assistant)
+  const turnPattern = /### (User|Assistant)\n\n([\s\S]*?)(?=\n### |\n---\n|$)/gi;
+  let match;
+  let index = 0;
+
+  while ((match = turnPattern.exec(content)) !== null) {
+    const role = match[1].toLowerCase() as 'user' | 'assistant';
+    const text = match[2].trim();
+
+    if (text.length > 50) { // Skip very short turns
+      chunks.push({
+        content: text,
+        index: index++,
+        role,
+      });
+    }
+  }
+
+  // If no markdown turns found, try JSONL format
+  if (chunks.length === 0 && content.includes('{"type":')) {
+    const lines = content.split('\n').filter(l => l.trim());
+    for (const line of lines) {
+      try {
+        const record = JSON.parse(line);
+        if (record.type === 'user' || record.type === 'assistant') {
+          const msgContent = extractContent(record.message?.content);
+          if (msgContent && msgContent.length > 50) {
+            chunks.push({
+              content: msgContent,
+              index: index++,
+              role: record.type,
+            });
+          }
+        }
+      } catch {
+        // Skip invalid JSON lines
+      }
+    }
+  }
+
+  return chunks;
+}
+
+function extractContent(content: any): string {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content
+      .filter((c: any) => c.type === 'text')
+      .map((c: any) => c.text)
+      .join('\n');
+  }
+  return '';
+}
+
+// Classify chunk using Claude
+async function classifyChunk(chunk: SessionChunk): Promise<ChunkClassification> {
+  const promptTemplate = readFileSync(
+    new URL('./classify-prompt.md', import.meta.url),
+    'utf-8'
+  );
+  const prompt = promptTemplate.replace('{chunk_content}', chunk.content);
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': config.anthropic.apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: config.anthropic.classificationModel,
+      max_tokens: 256,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+
+  // Check response status
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`Classification API error ${response.status}: ${errorText}`);
+    // Return default classification on API error
+    return {
+      layer: 'task',
+      sublayer: 'implementation',
+      product_area: null,
+      summary: chunk.content.slice(0, 100),
+      topics: [],
+    };
+  }
+
+  const data = await response.json();
+  const text = data.content?.[0]?.text || '{}';
+
+  try {
+    // Extract JSON from response (handle markdown code blocks)
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    return JSON.parse(jsonMatch?.[0] || '{}');
+  } catch {
+    // Default classification if parsing fails
+    return {
+      layer: 'task',
+      sublayer: 'implementation',
+      product_area: null,
+      summary: chunk.content.slice(0, 100),
+      topics: [],
+    };
+  }
+}
+
+// Generate embeddings using OpenAI
+async function embedBatch(texts: string[]): Promise<number[][]> {
+  const response = await fetch('https://api.openai.com/v1/embeddings', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${config.openai.apiKey}`,
+    },
+    body: JSON.stringify({
+      model: config.openai.embeddingModel,
+      input: texts,
+    }),
+  });
+
+  // Check response status
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Embedding API error ${response.status}: ${errorText}`);
+  }
+
+  const data = await response.json();
+
+  // Validate and return embeddings
+  return data.data.map((d: any) => validateEmbedding(d.embedding));
+}
+
+// Store in database
+async function storeChunks(
+  chunks: Array<{
+    chunk: SessionChunk;
+    classification: ChunkClassification;
+    embedding: number[];
+  }>,
+  options: IngestOptions
+): Promise<void> {
+  // Using raw SQL for pgvector compatibility
+  const { Pool } = await import('pg');
+  const pool = new Pool({ connectionString: config.database.url });
+
+  const today = new Date().toISOString().split('T')[0];
+
+  try {
+    for (const { chunk, classification, embedding } of chunks) {
+      // Validate embedding before use (defense in depth)
+      const validatedEmbedding = validateEmbedding(embedding);
+
+      await pool.query(
+        `INSERT INTO session_embeddings (
+          session_name, chunk_index, content, embedding_vec,
+          layer, sublayer, project_name, feature_name, product_area,
+          summary, topics, session_date, ingest_trigger, commit_hashes
+        ) VALUES (
+          $1, $2, $3, $4::vector,
+          $5, $6, $7, $8, $9,
+          $10, $11, $12, $13, $14
+        )`,
+        [
+          options.sessionName,
+          chunk.index,
+          chunk.content,
+          `[${validatedEmbedding.join(',')}]`,
+          classification.layer,
+          classification.sublayer,
+          config.project.name,
+          options.featureName || null,
+          classification.product_area,
+          classification.summary,
+          classification.topics,
+          today,
+          options.trigger,
+          options.commitHash ? [options.commitHash] : null,
+        ]
+      );
+    }
+  } finally {
+    await pool.end();
+  }
+}
+
+// Main ingestion function
+export async function ingestSession(options: IngestOptions): Promise<void> {
+  const validation = validateConfig();
+  if (!validation.valid) {
+    console.error(`Missing config: ${validation.missing.join(', ')}`);
+    process.exit(1);
+  }
+
+  if (!existsSync(options.sessionPath)) {
+    console.error(`Session file not found: ${options.sessionPath}`);
+    process.exit(1);
+  }
+
+  console.log(`Ingesting session: ${options.sessionName}`);
+
+  // 1. Read and chunk
+  const content = readFileSync(options.sessionPath, 'utf-8');
+  const chunks = chunkSession(content);
+  console.log(`  Chunks: ${chunks.length}`);
+
+  if (chunks.length === 0) {
+    console.log('  No chunks to ingest');
+    return;
+  }
+
+  // 2. Process chunks with error handling
+  // Using sequential processing to maintain alignment and handle errors gracefully
+  console.log('  Processing chunks...');
+  const processed: Array<{
+    chunk: SessionChunk;
+    classification: ChunkClassification;
+    embedding: number[];
+  }> = [];
+
+  for (const chunk of chunks) {
+    try {
+      // Classify
+      const classification = await classifyChunk(chunk);
+
+      // Embed
+      const embeddings = await embedBatch([chunk.content]);
+
+      processed.push({
+        chunk,
+        classification,
+        embedding: embeddings[0],
+      });
+
+      // Progress indicator
+      if (processed.length % 10 === 0) {
+        console.log(`    Processed ${processed.length}/${chunks.length} chunks`);
+      }
+    } catch (error) {
+      console.error(`  Failed to process chunk ${chunk.index}:`, error);
+      // Continue with other chunks
+    }
+  }
+
+  if (processed.length === 0) {
+    console.error('  No chunks were successfully processed');
+    return;
+  }
+
+  // 3. Store
+  console.log('  Storing...');
+  await storeChunks(processed, options);
+
+  console.log(`  Done! Ingested ${processed.length}/${chunks.length} chunks`);
+}
+
+// CLI entry point
+const args = process.argv.slice(2);
+if (args.length > 0) {
+  const sessionPath = args[0];
+  const trigger = (args[1] || 'manual') as IngestOptions['trigger'];
+  const commitHash = args[2];
+
+  const sessionName = sessionPath.split('/').pop()?.replace('.md', '') || 'unknown';
+
+  ingestSession({
+    sessionPath,
+    sessionName,
+    trigger,
+    commitHash,
+  }).catch(console.error);
+}

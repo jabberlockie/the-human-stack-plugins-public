@@ -1,0 +1,74 @@
+# {{PROJECT_NAME}} - Master Context
+
+> Single source of truth for all AI tools. Last updated: {{DATE}}
+
+## Quick Start
+
+1. **Understand the product**: Read `product/architecture.md`
+2. **Current work**: Read `project/active.md`
+3. **Make changes**: Check `project/state.md` for blockers and next steps
+
+## Three-Layer Context Model
+
+```
+PRODUCT (stable)     docs/architect/product/     What is this? How does it work?
+PROJECT (current)    docs/architect/project/     What are we building right now?
+TASK (subagents)     docs/architect/subagents/   What does each agent need to know?
+```
+
+---
+
+## Layer 1: Product Context (Stable Reference)
+
+Files that rarely change. Architecture, design patterns, domain knowledge.
+
+| File | Purpose |
+|------|---------|
+| `docs/architect/product/architecture.md` | Tech stack, system architecture, services |
+| `docs/architect/product/design.md` | UI patterns, typography, component specs |
+
+---
+
+## Layer 2: Project Context (Current Build Cycle)
+
+Files that change with each feature. Cleared when feature ships.
+
+| File | Purpose |
+|------|---------|
+| `docs/architect/project/active.md` | What we're building, goals, key files |
+| `docs/architect/project/decisions.md` | Architectural decisions this cycle |
+| `docs/architect/project/state.md` | Progress, blockers, next steps (auto-updated) |
+| `docs/plans/` | Task lists for current work |
+
+### Active Project
+- **Name**: (not started)
+- **Phase**: 0
+- **Status**: Setup complete
+
+---
+
+## Layer 3: Task Context (Subagents)
+
+Focused capabilities for specialized work. See `subagents/` directory.
+
+---
+
+## Conventions
+
+- **Tech Stack**: {{TECH_STACK}}
+- **Deployment**: {{DEPLOYMENT}}
+
+---
+
+## Recent Activity
+
+<!-- Auto-updated by git post-commit hook -->
+- {{DATE}}: Initialized Architect context system
+
+---
+
+## Navigation
+
+- **Archive**: `docs/architect/archive/` - Completed project contexts
+- **Sessions**: `docs/architect/sessions/` - Exported conversation history
+- **Backlog**: `docs/plans/backlog.md` - Future enhancements

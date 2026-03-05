@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/templates/hooks/check-architect-init.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

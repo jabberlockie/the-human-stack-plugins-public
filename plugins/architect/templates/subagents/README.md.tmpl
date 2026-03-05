@@ -1,0 +1,51 @@
+# Subagents Directory
+
+This directory contains specialized agent definitions for {{PROJECT_NAME}}.
+
+## What Are Subagents?
+
+Subagents are focused AI assistants with deep knowledge of specific domains or capabilities. They're invoked by the main Architect agent to handle specialized tasks.
+
+## Available Agents
+
+| Agent | Focus | When to Use |
+|-------|-------|-------------|
+| (none yet) | - | - |
+
+## Creating a Subagent
+
+1. Copy a template from `~/.claude/skills/architect/catalog/`
+2. Customize for your project's specific needs
+3. Place in this directory
+
+## Agent Format
+
+```yaml
+---
+name: agent-name
+description: Brief description of the agent's focus
+tools: Read, Grep, Glob, Edit, Write
+model: inherit
+---
+
+# Agent Name
+
+## Responsibilities
+- What this agent handles
+
+## Key Files
+- Files this agent should know about
+
+## Patterns
+- Patterns this agent should follow
+```
+
+## Catalog Agents
+
+Generic agents available in the skill catalog:
+
+- `ui-agent.md` - Frontend components, styling, UX
+- `api-agent.md` - Backend endpoints, services, data flow
+- `db-agent.md` - Database schema, queries, migrations
+
+Copy and customize as needed.
