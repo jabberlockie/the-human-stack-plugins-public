@@ -7,7 +7,7 @@ argument-hint: "[days back, default 7]"
 
 Find unanalyzed meeting transcripts and run JTBD analysis on each. Designed to be run manually (`/jtbd-catchup`) or scheduled via `claude -p "/jtbd-catchup"`.
 
-**DO NOT check the filesystem. DO NOT check the JTBD Analyses DB first. START by querying the Meeting Transcripts Notion database.**
+**DO NOT check the filesystem. DO NOT check the JTBD Analyses DB first. DO NOT use `notion-query-meeting-notes` (that queries Notion's built-in notetaker, which is WRONG). START by querying the Meeting Transcripts Notion database using `notion-query-database-view`.**
 
 ## Step 1: Determine Time Window
 
@@ -15,20 +15,15 @@ Find unanalyzed meeting transcripts and run JTBD analysis on each. Designed to b
 - If no argument, default to **7 days**
 - Calculate the cutoff date: today minus N days
 
-## Step 2: Query the Meeting Transcripts Database
+## Step 2: Fetch the Meeting Transcripts Database
 
-**This is a Notion database query. Use the Notion MCP tools.**
+**Use `notion-fetch` with the database ID. Do NOT use `notion-search`, `notion-query-meeting-notes`, or `notion-query-database-view`.**
 
-Query this specific Notion database:
-- **Database URL**: https://www.notion.so/thehumanstack/8368d3474cac4e71bf945934fce957f7
-- **Data source**: `collection://669e7e0b-dfe6-43c4-b4c3-d7b734e06ed5`
-
-Use `notion-query-database-view` with:
 ```
-data_source_url: "collection://669e7e0b-dfe6-43c4-b4c3-d7b734e06ed5"
+notion-fetch({ id: "8368d3474cac4e71bf945934fce957f7" })
 ```
 
-Filter for transcripts created in the past N days. This returns the list of **all recent meeting transcripts**.
+This returns all pages in the Meeting Transcripts database. Filter the results for transcripts created in the past N days.
 
 ## Step 3: For Each Transcript, Check if a JTBD Analysis Exists
 

@@ -21,12 +21,14 @@ Analyze an entire meeting series for an organization -- coaching engagements, Up
 
 ### 2. Find All Transcripts for the Organization
 
-Search the **Meeting Transcripts** Notion DB for all transcripts related to this org:
+Fetch the **Meeting Transcripts** Notion DB and filter for this org:
 
-1. Use `notion-search` with `data_source_url: "collection://669e7e0b-dfe6-43c4-b4c3-d7b734e06ed5"` searching for the organization name
-2. Also search with common abbreviations or alternate names (e.g., "DBG" for "Downtown Boxing Gym")
+1. Use `notion-fetch` with `id: "8368d3474cac4e71bf945934fce957f7"` to get all transcripts
+2. Filter results for the organization name (also check common abbreviations, e.g., "DBG" for "Downtown Boxing Gym")
 3. Collect all matching transcript pages
 4. Sort chronologically by date (ascending -- oldest first)
+
+**Do NOT use `notion-search`, `notion-query-meeting-notes`, or `notion-query-database-view`.**
 
 ### 3. Check Existing Analyses & Versions
 
